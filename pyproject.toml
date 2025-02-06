@@ -1,0 +1,27 @@
+[project]
+name = "acme"
+version = "0.0.1"
+description = "python template"
+readme = ".github/README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+dependencies = [
+    "pytest>=6.0.0",
+    "ruff",
+]
+
+[tool.ruff]
+line-length = 90
+
+[tool.ruff.lint]
+select = ["E", "F", "I001"]
+
+[tool.ruff.lint.isort]
+lines-after-imports = 2
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+	"ignore::UserWarning"
+]
