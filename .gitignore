@@ -9,7 +9,6 @@ uv.lock
 
 venv/
 data/
-models/
 notebooks/
 
 **/.DS_Store
