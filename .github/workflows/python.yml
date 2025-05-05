@@ -5,13 +5,11 @@ on:
     branches: [main]
     paths:
       - "**.py"
-      - "uv.lock"
       - ".github/workflows/python.yml"
   pull_request:
     branches: [main]
     paths:
       - "**.py"
-      - "uv.lock"
       - ".github/workflows/python.yml"
   release:
     types: [created]
