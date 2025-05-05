@@ -1,4 +1,5 @@
 import collections
+import math
 from typing import Tuple
 
 import mlx.core as mx
@@ -109,3 +110,66 @@ class VisionEmbeddings(nn.Module):
         embeddings = self.dropout(embeddings)
 
         return embeddings, (patch_height, patch_width)
+
+
+class VisionSelfAttention(nn.Module):
+    def __init__(
+        self,
+        hidden_size: int,
+        num_attention_heads: int,
+        attention_dropout_prob: float = 0.0,
+    ):
+        super().__init__()
+
+        if hidden_size % num_attention_heads != 0:
+            raise ValueError(
+                f"The hidden size {hidden_size} is not a multiple of the number of attention"  # noqa: E501
+                f"heads {num_attention_heads}."
+            )
+
+        self.num_attention_heads = num_attention_heads
+        self.attention_head_size = int(hidden_size / num_attention_heads)
+        self.all_head_size = self.num_attention_heads * self.attention_head_size
+
+        self.query = nn.Linear(hidden_size, self.all_head_size)
+        self.key = nn.Linear(hidden_size, self.all_head_size, bias=False)
+        self.value = nn.Linear(hidden_size, self.all_head_size)
+
+        self.dropout = nn.Dropout(attention_dropout_prob)
+
+    def transpose_for_scores(self, x: mx.array) -> mx.array:
+        new_x_shape = x.shape[:-1] + (self.num_attention_heads, self.attention_head_size)
+        x = x.reshape(new_x_shape)
+        return x.transpose(0, 2, 1, 3)
+
+    def __call__(self, hidden_states: mx.array, output_attns: bool = False) -> mx.array:
+        """
+
+        Args:
+            hidden_states: (batch_size, seq_len, hidden_size)
+
+        Returns:
+            context_layer: (batch_size, seq_len, hidden_size)
+            attn_probs: (batch_size, num_attention_heads, seq_len, seq_len)
+                if output_attns is True
+        """
+        mixed_query_layer = self.query(hidden_states)
+
+        key_layer = self.transpose_for_scores(self.key(hidden_states))
+        value_layer = self.transpose_for_scores(self.value(hidden_states))
+        query_layer = self.transpose_for_scores(mixed_query_layer)
+
+        attn_scores = mx.matmul(query_layer, key_layer.transpose(0, 1, 3, 2))
+        attn_scores = attn_scores / math.sqrt(self.attention_head_size)
+
+        attn_probs = nn.softmax(attn_scores, axis=-1)
+        attn_probs = self.dropout(attn_probs)
+
+        context_layer = mx.matmul(attn_probs, value_layer)
+        context_layer = context_layer.transpose(0, 2, 1, 3)
+        new_context_layer_shape = context_layer.shape[:-2] + (self.all_head_size,)
+        context_layer = context_layer.reshape(new_context_layer_shape)
+
+        output = (context_layer, attn_probs) if output_attns else context_layer
+
+        return output
