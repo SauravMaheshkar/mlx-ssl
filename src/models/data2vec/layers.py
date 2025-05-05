@@ -279,3 +279,38 @@ class VisionLayer(nn.Module):
         layer_output = self.drop_path(layer_output) + hidden_states
 
         return layer_output + self_attn_outputs
+
+
+class VisionEncoder(nn.Module):
+    def __init__(
+        self,
+        hidden_size: int,
+        intermediate_size: int,
+        num_attention_heads: int,
+        num_hidden_layers: int,
+        layer_scale_init_value: float = 0.1,
+        drop_prob: float = 0.1,
+        hidden_dropout_prob: float = 0.0,
+        attention_dropout_prob: float = 0.0,
+    ):
+        super().__init__()
+
+        dpr = [x.item() for x in mx.linspace(0, drop_prob, num_hidden_layers)]
+        self.trunk = nn.Sequential(
+            *[
+                VisionLayer(
+                    hidden_size=hidden_size,
+                    intermediate_size=intermediate_size,
+                    num_attention_heads=num_attention_heads,
+                    layer_scale_init_value=layer_scale_init_value,
+                    drop_prob=dpr[i],
+                    hidden_dropout_prob=hidden_dropout_prob,
+                    attention_dropout_prob=attention_dropout_prob,
+                )
+                for i in range(num_hidden_layers)
+            ]
+        )
+
+    def __call__(self, hidden_states: mx.array) -> mx.array:
+        hidden_states = self.trunk(hidden_states)
+        return hidden_states
