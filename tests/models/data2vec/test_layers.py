@@ -5,6 +5,7 @@ from src.models.data2vec.layers import (
     PatchEncoder,
     VisionAttention,
     VisionEmbeddings,
+    VisionEncoder,
     VisionLayer,
     VisionSelfAttention,
 )
@@ -161,3 +162,40 @@ def test_vision_layer(
     layer_out = layer(hidden_states)
 
     assert layer_out.shape == (1, seq_len, hidden_size)
+
+
+@pytest.mark.parametrize(
+    "hidden_size, intermediate_size, num_attention_heads, image_size, patch_size, num_channels, seq_len",  # noqa: E501
+    [
+        (768, 3072, 12, 224, 16, 3, 196),
+        (512, 2048, 8, 256, 32, 3, 64),
+    ],
+)
+def test_vision_encoder(
+    hidden_size,
+    intermediate_size,
+    num_attention_heads,
+    image_size,
+    patch_size,
+    num_channels,
+    seq_len,
+):
+    encoder = VisionEncoder(
+        hidden_size=hidden_size,
+        intermediate_size=intermediate_size,
+        num_attention_heads=num_attention_heads,
+        num_hidden_layers=1,
+    )
+
+    encoder_module = PatchEncoder(
+        image_size=image_size,
+        patch_size=patch_size,
+        num_channels=num_channels,
+        hidden_size=hidden_size,
+    )
+
+    pixel_values = mx.ones((1, image_size, image_size, num_channels))
+    hidden_states, _ = encoder_module(pixel_values)
+    encoder_out = encoder(hidden_states)
+
+    assert encoder_out.shape == (1, seq_len, hidden_size)
