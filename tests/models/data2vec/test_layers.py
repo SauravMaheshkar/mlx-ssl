@@ -1,7 +1,12 @@
 import mlx.core as mx
 import pytest
 
-from src.models.data2vec.layers import PatchEncoder, VisionEmbeddings, VisionSelfAttention
+from src.models.data2vec.layers import (
+    PatchEncoder,
+    VisionAttention,
+    VisionEmbeddings,
+    VisionSelfAttention,
+)
 
 
 @pytest.mark.parametrize(
@@ -93,7 +98,7 @@ def test_vision_self_attention(
         (512, 8, 64, 1, 256, 3, 32),
     ],
 )
-def test_vision_self_attention_with_attn_output(
+def test_vision_attention(
     hidden_size,
     num_attention_heads,
     seq_len,
@@ -102,10 +107,11 @@ def test_vision_self_attention_with_attn_output(
     num_channels,
     patch_size,
 ):
-    attn_module = VisionSelfAttention(
+    attn = VisionAttention(
         hidden_size=hidden_size,
         num_attention_heads=num_attention_heads,
     )
+
     encoder = PatchEncoder(
         image_size=image_size,
         patch_size=patch_size,
@@ -115,7 +121,6 @@ def test_vision_self_attention_with_attn_output(
 
     pixel_values = mx.ones((batch_size, image_size, image_size, num_channels))
     hidden_states, _ = encoder(pixel_values)
+    attn_out = attn(hidden_states)
 
-    context_layer, attn_probs = attn_module(hidden_states, output_attns=True)
-    assert context_layer.shape == (batch_size, seq_len, hidden_size)
-    assert attn_probs.shape == (batch_size, num_attention_heads, seq_len, seq_len)
+    assert attn_out.shape == (seq_len, hidden_size)
