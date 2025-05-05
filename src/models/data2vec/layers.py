@@ -314,3 +314,49 @@ class VisionEncoder(nn.Module):
     def __call__(self, hidden_states: mx.array) -> mx.array:
         hidden_states = self.trunk(hidden_states)
         return hidden_states
+
+
+class Data2VecVisionBackbone(nn.Module):
+    def __init__(
+        self,
+        image_size: int,
+        patch_size: int,
+        num_channels: int,
+        hidden_size: int,
+        intermediate_size: int,
+        num_attention_heads: int,
+        num_hidden_layers: int,
+        use_mean_pooling: bool = True,
+        layer_scale_init_value: float = 0.1,
+        drop_prob: float = 0.1,
+        hidden_dropout_prob: float = 0.0,
+        attention_dropout_prob: float = 0.0,
+    ):
+        super().__init__()
+
+        self.embeddings = VisionEmbeddings(
+            image_size=image_size,
+            patch_size=patch_size,
+            num_channels=num_channels,
+            hidden_size=hidden_size,
+            hidden_dropout_prob=hidden_dropout_prob,
+        )
+        self.encoder = VisionEncoder(
+            hidden_size=hidden_size,
+            intermediate_size=intermediate_size,
+            num_attention_heads=num_attention_heads,
+            num_hidden_layers=num_hidden_layers,
+            layer_scale_init_value=layer_scale_init_value,
+            drop_prob=drop_prob,
+            hidden_dropout_prob=hidden_dropout_prob,
+            attention_dropout_prob=attention_dropout_prob,
+        )
+
+        self.layernorm = (
+            nn.Identity() if use_mean_pooling else nn.LayerNorm(hidden_size, eps=1e-12)
+        )
+
+    def __call__(self, pixel_values: mx.array) -> mx.array:
+        embedding_out, _ = self.embeddings(pixel_values)
+        encoder_out = self.encoder(embedding_out)
+        return self.layernorm(encoder_out)

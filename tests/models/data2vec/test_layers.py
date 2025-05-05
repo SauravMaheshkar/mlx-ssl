@@ -2,6 +2,7 @@ import mlx.core as mx
 import pytest
 
 from src.models.data2vec.layers import (
+    Data2VecVisionBackbone,
     PatchEncoder,
     VisionAttention,
     VisionEmbeddings,
@@ -199,3 +200,36 @@ def test_vision_encoder(
     encoder_out = encoder(hidden_states)
 
     assert encoder_out.shape == (1, seq_len, hidden_size)
+
+
+@pytest.mark.parametrize(
+    "image_size, patch_size, num_channels, hidden_size, intermediate_size, num_attention_heads, num_hidden_layers, seq_len",  # noqa: E501
+    [
+        (224, 16, 3, 768, 3072, 12, 12, 196),
+        (256, 32, 3, 512, 2048, 8, 6, 64),
+    ],
+)
+def test_data2vec_vision_backbone(
+    image_size,
+    patch_size,
+    num_channels,
+    hidden_size,
+    intermediate_size,
+    num_attention_heads,
+    num_hidden_layers,
+    seq_len,
+):
+    backbone = Data2VecVisionBackbone(
+        image_size=image_size,
+        patch_size=patch_size,
+        num_channels=num_channels,
+        hidden_size=hidden_size,
+        intermediate_size=intermediate_size,
+        num_attention_heads=num_attention_heads,
+        num_hidden_layers=num_hidden_layers,
+    )
+
+    pixel_values = mx.ones((1, image_size, image_size, num_channels))
+    outputs = backbone(pixel_values)
+
+    assert outputs.shape == (1, seq_len + 1, hidden_size)
