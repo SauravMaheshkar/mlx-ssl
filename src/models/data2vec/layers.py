@@ -6,6 +6,25 @@ import mlx.core as mx
 import mlx.nn as nn
 
 
+class DropPath(nn.Module):
+    def __init__(self, drop_prob: float = None):
+        super().__init__()
+        self.drop_prob = drop_prob
+
+    def __call__(self, hidden_states: mx.array) -> mx.array:
+        if self.drop_prob == 0.0 or not self.training:
+            return hidden_states
+
+        keep_prob = 1 - self.drop_prob
+        shape = (hidden_states.shape[0],) + (1,) * (len(hidden_states.shape) - 1)
+        random_tensor = mx.random.uniform(
+            shape=shape, low=0.0, high=1.0, dtype=hidden_states.dtype
+        )
+        random_tensor = mx.floor(random_tensor)
+        output = mx.divide(hidden_states, keep_prob) * random_tensor
+        return output
+
+
 class PatchEncoder(nn.Module):
     def __init__(
         self, image_size: int, patch_size: int, num_channels: int, hidden_size: int
@@ -194,3 +213,69 @@ class VisionAttention(nn.Module):
         attn_output = self.dropout(self.dense(self_outputs[0]))
 
         return attn_output
+
+
+class VisionLayer(nn.Module):
+    def __init__(
+        self,
+        hidden_size: int,
+        intermediate_size: int,
+        num_attention_heads: int,
+        layer_scale_init_value: float = 0.1,
+        drop_prob: float = 0.1,
+        hidden_dropout_prob: float = 0.0,
+        attention_dropout_prob: float = 0.0,
+    ):
+        super().__init__()
+
+        self.seq_len_dim = 1
+        self.attention = VisionAttention(
+            hidden_size=hidden_size,
+            num_attention_heads=num_attention_heads,
+            hidden_dropout_prob=hidden_dropout_prob,
+            attention_dropout_prob=attention_dropout_prob,
+        )
+
+        self.pre_ln = nn.LayerNorm(hidden_size, eps=1e-12)
+        self.post_ln = nn.LayerNorm(hidden_size, eps=1e-12)
+
+        self.drop_path = DropPath(drop_prob)
+
+        self.intermediate_dense = nn.Linear(hidden_size, intermediate_size)
+        self.output_dense = nn.Linear(intermediate_size, hidden_size)
+        self.dropout = nn.Dropout(hidden_dropout_prob)
+
+        if layer_scale_init_value > 0.0:
+            self.lambda_1 = layer_scale_init_value * mx.ones((hidden_size,))
+            self.lambda_2 = layer_scale_init_value * mx.ones((hidden_size,))
+        else:
+            self.lambda_1 = None
+            self.lambda_2 = None
+
+    def __call__(self, hidden_states: mx.array) -> mx.array:
+        """
+
+        Args:
+            hidden_states: (batch_size, seq_len, hidden_size)
+
+        Returns:
+            layer_output: (batch_size, seq_len, hidden_size)
+        """
+        self_attn_outputs = self.attention(hidden_states=self.pre_ln(hidden_states))
+
+        if self.lambda_1 is not None:
+            attention_output = self.lambda_1 * self_attn_outputs
+
+        hidden_states = self.drop_path(attention_output) + hidden_states
+        layer_output = self.post_ln(hidden_states)
+
+        layer_out = nn.gelu(self.intermediate_dense(layer_output))
+        layer_out = self.output_dense(layer_out)
+        layer_out = self.dropout(layer_out)
+
+        if self.lambda_2 is not None:
+            layer_output = self.lambda_2 * layer_out
+
+        layer_output = self.drop_path(layer_output) + hidden_states
+
+        return layer_output + self_attn_outputs
