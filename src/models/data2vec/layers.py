@@ -142,7 +142,7 @@ class VisionSelfAttention(nn.Module):
         x = x.reshape(new_x_shape)
         return x.transpose(0, 2, 1, 3)
 
-    def __call__(self, hidden_states: mx.array, output_attns: bool = False) -> mx.array:
+    def __call__(self, hidden_states: mx.array) -> mx.array:
         """
 
         Args:
@@ -150,8 +150,6 @@ class VisionSelfAttention(nn.Module):
 
         Returns:
             context_layer: (batch_size, seq_len, hidden_size)
-            attn_probs: (batch_size, num_attention_heads, seq_len, seq_len)
-                if output_attns is True
         """
         mixed_query_layer = self.query(hidden_states)
 
@@ -170,6 +168,29 @@ class VisionSelfAttention(nn.Module):
         new_context_layer_shape = context_layer.shape[:-2] + (self.all_head_size,)
         context_layer = context_layer.reshape(new_context_layer_shape)
 
-        output = (context_layer, attn_probs) if output_attns else context_layer
+        return context_layer
 
-        return output
+
+class VisionAttention(nn.Module):
+    def __init__(
+        self,
+        hidden_size: int,
+        num_attention_heads: int,
+        hidden_dropout_prob: float = 0.0,
+        attention_dropout_prob: float = 0.0,
+    ):
+        super().__init__()
+
+        self.attn = VisionSelfAttention(
+            hidden_size=hidden_size,
+            num_attention_heads=num_attention_heads,
+            attention_dropout_prob=attention_dropout_prob,
+        )
+        self.dense = nn.Linear(hidden_size, hidden_size)
+        self.dropout = nn.Dropout(hidden_dropout_prob)
+
+    def __call__(self, hidden_states: mx.array) -> mx.array:
+        self_outputs = self.attn(hidden_states=hidden_states)
+        attn_output = self.dropout(self.dense(self_outputs[0]))
+
+        return attn_output
