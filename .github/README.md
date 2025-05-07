@@ -16,6 +16,5 @@ model = Data2VecVisionForImageClassification.from_pretrained(
 ```
 
 * https://arxiv.org/abs/2202.03555
-```
 
 </details>
