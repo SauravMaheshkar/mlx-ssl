@@ -39,7 +39,7 @@ jobs:
 
       - name: Ruff
         run: |
-          uv run ruff check src
+          uv run ruff check mlx_ssl
 
       - name: Test with PyTest
         run: |
