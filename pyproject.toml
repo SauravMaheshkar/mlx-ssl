@@ -6,7 +6,9 @@ readme = ".github/README.md"
 requires-python = ">=3.10"
 license = "MIT"
 dependencies = [
-    "mlx",
+  "huggingface-hub>=0.31.1",
+  "ml-collections>=1.1.0",
+  "mlx>=0.25.1",
 ]
 
 [project.optional-dependencies]
@@ -15,6 +17,9 @@ dev = [
   "pytest",
   "ruff"
 ]
+
+[tool.setuptools.packages.find]
+include = ["mlx_ssl*"]
 
 [tool.ruff]
 line-length = 90
@@ -28,6 +33,6 @@ lines-after-imports = 2
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 filterwarnings = [
-    "ignore::DeprecationWarning",
+  "ignore::DeprecationWarning",
 	"ignore::UserWarning"
 ]
