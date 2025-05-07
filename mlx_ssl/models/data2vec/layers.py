@@ -253,7 +253,7 @@ class VisionLayer(nn.Module):
     def __init__(
         self,
         config: ConfigDict,
-        drop_path_rate: float = None,
+        drop_path_rate: float = 0.0,
     ):
         self.seq_len_dim = 1
         self.attention = VisionAttention(config)
