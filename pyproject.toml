@@ -17,6 +17,9 @@ dev = [
   "pytest",
   "ruff"
 ]
+scripts = [
+  "torch"
+]
 
 [tool.setuptools.packages.find]
 include = ["mlx_ssl*"]
